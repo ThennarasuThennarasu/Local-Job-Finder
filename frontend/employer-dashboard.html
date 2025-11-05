@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Employer Dashboard - Local Job Finder</title>
+  <link rel="stylesheet" href="employer-dashboard.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <h2>👷 Employer Dashboard</h2>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </nav>
+
+  <main class="dashboard-container">
+
+    <!-- Post a New Job -->
+    <section class="dashboard-section">
+      <h3>📢 Post a New Job</h3>
+      <div class="form-group">
+        <input type="text" id="jobTitle" placeholder="Job Title (e.g., Painter, Plumber)">
+        <textarea id="jobDescription" placeholder="Enter job details..."></textarea>
+        <input type="text" id="jobLocation" placeholder="Job Location">
+        <button class="action-btn" onclick="postJob()">Post Job</button>
+      </div>
+    </section>
+
+    <!-- Posted Jobs -->
+    <section class="dashboard-section">
+      <h3>🗂️ My Posted Jobs</h3>
+      <ul id="jobList" class="list"></ul>
+    </section>
+
+    <!-- Notifications -->
+    <section class="dashboard-section">
+      <h3>🔔 Notifications (Accepted Jobs)</h3>
+      <ul id="notifications" class="list"></ul>
+    </section>
+
+    <!-- Worker Rating -->
+    <section class="dashboard-section">
+      <h3>⭐ Rate Your Worker</h3>
+      <div id="completedJobs" class="rating-section"></div>
+    </section>
+
+    <!-- Live Map -->
+    <section class="dashboard-section">
+      <h3>📍 Worker Live Location</h3>
+      <div id="map"></div>
+    </section>
+
+  </main>
+
+ <!-- ✅ Correct Google Maps Script -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?AIzaSyCspkYhH4YVygR1_1_XAv40C9OOtLNR-SY &callback=initMap"></script>
+
+  <!-- ✅ Dashboard Logic -->
+  <script src="script.js"></script>
+
+</body>
+</html>

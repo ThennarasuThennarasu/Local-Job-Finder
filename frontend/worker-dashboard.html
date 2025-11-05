@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Worker Dashboard - Local Job Finder</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <nav>
+    <h2>🔧 Worker Dashboard</h2>
+    <button onclick="logout()">Logout</button>
+  </nav>
+
+  <section class="dashboard">
+    <h3>Available Jobs</h3>
+    <ul id="availableJobs"></ul>
+  </section>
+
+  <section class="dashboard">
+    <h3>Accepted Jobs</h3>
+    <ul id="acceptedJobs"></ul>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Worker Dashboard - Local Job Finder</title>
+  <link rel="stylesheet" href="worker-dashboard.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <h2>🔧 Worker Dashboard</h2>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </nav>
+
+  <div class="dashboard-container">
+    <section class="dashboard-section">
+      <h3>📍 Available Jobs</h3>
+      <div id="availableJobs" class="job-list"></div>
+    </section>
+
+    <section class="dashboard-section">
+      <h3>✅ Accepted Jobs</h3>
+      <div id="acceptedJobs" class="job-list"></div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
