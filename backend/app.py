@@ -5,73 +5,7 @@ import mysql.connector
 app = Flask(__name__)
 CORS(app)
 
-# ---------- Database Connection ----------
-def get_db_connection():
-    return mysql.connector.connect(
-        host="localhost",      # your MySQL host
-        user="root",           # your MySQL username
-        password="Thennu67@#",  # 🔹 change this
-        database="local_job_finder"
-    )
-
-# ---------- Signup ----------
-@app.route("/signup", methods=["POST"])
-def signup():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
-    role = data.get("role")
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    # Check if email already exists
-    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
-    if cursor.fetchone():
-        conn.close()
-        return jsonify({"message": "Email already registered!"}), 400
-
-    # Insert new user
-    cursor.execute("INSERT INTO users (email, password, role) VALUES (%s, %s, %s)", (email, password, role))
-    conn.commit()
-    conn.close()
-
-    return jsonify({"message": "Signup successful!"})
-
-# ---------- Login ----------
-@app.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT role FROM users WHERE email = %s AND password = %s", (email, password))
-    user = cursor.fetchone()
-    conn.close()
-
-    if user:
-        return jsonify({"message": "Login successful!", "role": user["role"]})
-    else:
-        return jsonify({"message": "Invalid email or password!"}), 401
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
-
-
-
-
-
-
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import mysql.connector
-
-app = Flask(__name__)
-CORS(app)
-
+# ------------------ DB CONNECTION ------------------
 def get_db_connection():
     return mysql.connector.connect(
         host="localhost",
@@ -80,61 +14,248 @@ def get_db_connection():
         database="local_job_finder"
     )
 
-# ---------- Worker sends location ----------
-@app.route("/update_location", methods=["POST"])
-def update_location():
+# ------------------ FORMAT TIMESTAMP ------------------
+def fix_dates(rows):
+    for r in rows:
+        for field in ["created_at", "accepted_at", "completed_at"]:
+            if field in r and r[field] is not None:
+                r[field] = r[field].strftime("%Y-%m-%d %H:%M:%S")
+    return rows
+
+
+
+# ------------------ SIGNUP ------------------
+@app.route("/signup", methods=["POST"])
+def signup():
     data = request.get_json()
-    worker_id = data.get("worker_id")
-    lat = data.get("latitude")
-    lon = data.get("longitude")
+
+    name = data.get("name")
+    mobile = data.get("mobile")
+    email = data.get("email")
+    password = data.get("password")
+    role = data.get("role")
+
+    skills = ",".join(data.get("skills", []))
+    experience = data.get("workerExp")
+    aadhaar = data.get("workerAadhaar")
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+    if cursor.fetchone():
+        conn.close()
+        return jsonify({"message": "Email already registered!"}), 400
+
     cursor.execute("""
-        INSERT INTO worker_locations (worker_id, latitude, longitude)
-        VALUES (%s, %s, %s)
-        ON DUPLICATE KEY UPDATE latitude=%s, longitude=%s
-    """, (worker_id, lat, lon, lat, lon))
+        INSERT INTO users (name, mobile, email, password, role, skills, experience, aadhaar)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """, (name, mobile, email, password, role, skills, experience, aadhaar))
+
     conn.commit()
     conn.close()
 
-    return jsonify({"message": "Location updated"})
+    return jsonify({"message": "Signup successful!"})
 
-# ---------- Employer fetches worker location ----------
-@app.route("/get_worker_location/<int:worker_id>", methods=["GET"])
-def get_worker_location(worker_id):
+
+# ------------------ LOGIN ------------------
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json()
+    email = data.get("email")
+    password = data.get("password")
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM worker_locations WHERE worker_id = %s", (worker_id,))
-    location = cursor.fetchone()
+
+    cursor.execute("SELECT id, role, name FROM users WHERE email = %s AND password = %s",
+                   (email, password))
+    user = cursor.fetchone()
     conn.close()
 
-    if location:
-        return jsonify(location)
+    if user:
+        return jsonify({
+            "message": "Login successful!",
+            "id": user["id"],
+            "role": user["role"],
+            "name": user["name"]
+        })
     else:
-        return jsonify({"message": "No location found"}), 404
+        return jsonify({"message": "Invalid email or password!"}), 401
 
+
+# ------------------ POST JOB ------------------
+@app.route("/post_job", methods=["POST"])
+def post_job():
+    data = request.get_json()
+
+    employer_id = data.get("employer_id")
+    employer_name = data.get("employer_name")
+    job_title = data.get("job_title")
+    job_description = data.get("job_description")
+    job_location = data.get("job_location")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO jobs_new (employer_id, employer_name, job_title, job_description, job_location, created_at)
+        VALUES (%s, %s, %s, %s, %s, NOW())
+    """, (employer_id, employer_name, job_title, job_description, job_location))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Job posted"})
+
+
+# ------------------ GET JOBS FOR WORKER ------------------
+@app.route("/get_jobs_new", methods=["GET"])
+def get_jobs_new():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT id, employer_id, employer_name, job_title, job_description, job_location, status, created_at
+        FROM jobs_new ORDER BY id DESC
+    """)
+    jobs_new = cursor.fetchall()
+    conn.close()
+
+    return jsonify(fix_dates(jobs_new))
+
+
+# ------------------ ACCEPT JOB ------------------
+@app.route("/accept_job", methods=["POST"])
+def accept_job():
+    data = request.get_json()
+    job_id = data.get("job_id")
+    worker_id = data.get("worker_id")
+    worker_name = data.get("worker_name")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE jobs_new
+        SET worker_id = %s,
+            worker_name = %s,
+            status = 'Accepted',
+            accepted_at = NOW()
+        WHERE id = %s
+    """, (worker_id, worker_name, job_id))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Job accepted"})
+
+
+
+# ------------------ REJECT JOB ------------------
+@app.route("/reject_job", methods=["POST"])
+def reject_job():
+    data = request.get_json()
+    job_id = data.get("job_id")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE jobs_new
+        SET status = 'Rejected', worker_id = NULL, worker_name = NULL
+        WHERE id = %s
+    """, (job_id,))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Job rejected"})
+
+
+# ------------------ EMPLOYER POSTED JOBS ------------------
+@app.route("/get_posted_jobs_new/<int:employer_id>", methods=["GET"])
+def get_posted_jobs_new(employer_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT id, job_title, job_description, job_location,
+               status, worker_name, created_at, accepted_at, completed_at
+        FROM jobs_new
+        WHERE employer_id = %s
+        ORDER BY id DESC
+    """, (employer_id,))
+
+    jobs_new = cursor.fetchall()
+    conn.close()
+
+    return jsonify(fix_dates(jobs_new))
+
+
+
+
+# ------------------ WORKER ACCEPTED JOBS ------------------
+@app.route("/get_accepted_jobs_new/<int:worker_id>", methods=["GET"])
+def get_accepted_jobs_new(worker_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT *
+        FROM jobs_new
+        WHERE worker_id = %s AND status = 'Accepted'
+        ORDER BY id DESC
+    """, (worker_id,))
+
+    jobs_new = cursor.fetchall()
+    conn.close()
+
+    return jsonify(fix_dates(jobs_new))
+
+
+# ------------------ COMPLETE JOB ------------------
+@app.route("/complete_job", methods=["POST"])
+def complete_job():
+    data = request.get_json()
+    job_id = data.get("job_id")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE jobs_new
+        SET status = 'Completed',
+            completed_at = NOW()
+        WHERE id = %s
+    """, (job_id,))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Job Completed"})
+
+
+
+# ------------------ COMPLETED JOBS LIST ------------------
+@app.route("/get_completed_jobs/<int:worker_id>", methods=["GET"])
+def get_completed_jobs(worker_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT *
+        FROM jobs_new
+        WHERE worker_id = %s AND status = 'Completed'
+        ORDER BY id DESC
+    """, (worker_id,))
+
+    jobs = cursor.fetchall()
+    conn.close()
+
+    return jsonify(fix_dates(jobs))
+
+
+# ------------------ RUN SERVER ------------------
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-
-
-
-@app.route('/api/submitRating', methods=['POST'])
-def submit_rating():
-    data = request.get_json()
-    job_id = data['jobId']
-    worker_id = data['workerId']
-    rating = data['rating']
-    feedback = data['feedback']
-    employer_id = session['user_id']
-
-    cur = mysql.connection.cursor()
-    cur.execute("INSERT INTO ratings (job_id, employer_id, worker_id, rating, feedback) VALUES (%s, %s, %s, %s, %s)",
-                (job_id, employer_id, worker_id, rating, feedback))
-    mysql.connection.commit()
-    cur.close()
-    return jsonify({'message': 'Rating saved successfully!'})

@@ -142,7 +142,7 @@ function postJob() {
 }
 
 function loadEmployerJobs() {
-  const jobs = getJobs();
+  const jobs = getJobs();  // your stored jobs
   const jobList = document.getElementById("jobList");
   const notifications = document.getElementById("notifications");
   if (!jobList || !notifications) return;
@@ -151,27 +151,71 @@ function loadEmployerJobs() {
   notifications.innerHTML = "";
 
   jobs.forEach((job) => {
+
+    // -------------------------
+    // TIME AGO CALCULATION
+    // -------------------------
+    const postedAgo = timeAgo(job.created_at);
+
     const li = document.createElement("li");
     li.innerHTML = `
       <strong>${job.title}</strong> - ${job.location}<br>
       <small>${job.description}</small><br>
+
+      <span style="color:#007bff; font-size:12px;">
+        ⏱ Posted: ${postedAgo}
+      </span><br>
+
       <b>Status:</b> ${job.status}
       ${job.worker ? `<br><b>Worker:</b> ${job.worker}` : ""}
-      ${job.workerLocation ? `<br>📍 Worker Location: ${job.workerLocation.lat.toFixed(4)}, ${job.workerLocation.lng.toFixed(4)}` : ""}
+      ${
+        job.workerLocation
+          ? `<br>📍 Worker Location: ${job.workerLocation.lat.toFixed(4)}, ${job.workerLocation.lng.toFixed(4)}`
+          : ""
+      }
     `;
+
     jobList.appendChild(li);
 
+    // -------------------------
+    // Notifications
+    // -------------------------
     if (job.status === "Accepted") {
       const note = document.createElement("li");
-      note.textContent = `${job.title} accepted by ${job.worker}`;
+      note.textContent = `📢 ${job.title} accepted by ${job.worker}`;
       notifications.appendChild(note);
-    } else if (job.status === "Completed") {
+    } 
+    else if (job.status === "Completed") {
       const note = document.createElement("li");
       note.textContent = `✅ ${job.title} completed by ${job.worker}`;
       notifications.appendChild(note);
     }
   });
 }
+
+
+function timeAgo(createdTime) {
+  if (!createdTime) return "Just now";
+
+  // MySQL format → "2025-11-29 12:45:10"
+  const date = new Date(createdTime.replace(" ", "T"));
+
+  if (isNaN(date.getTime())) return "Just now";
+
+  const now = new Date();
+  const diffMs = now - date;
+
+  const sec = Math.floor(diffMs / 1000);
+  const min = Math.floor(sec / 60);
+  const hrs = Math.floor(min / 60);
+  const days = Math.floor(hrs / 24);
+
+  if (sec < 60) return "Just now";
+  if (min < 60) return `${min} min ago`;
+  if (hrs < 24) return `${hrs} hours ago`;
+  return `${days} days ago`;
+}
+
 
 // ===== WORKER FUNCTIONS =====
 function loadAvailableJobs() {
@@ -428,3 +472,23 @@ function loadRatings() {
 }
 
 
+
+
+// SHOW EMPLOYER NAME 
+
+window.onload = function () {
+  const name = localStorage.getItem("employerName");
+  if (name) {
+    document.getElementById("empNameDisplay").innerHTML = `👷 ${name} - Employer Dashboard`;
+  }
+};
+
+
+
+body: JSON.stringify({
+  employer_id: userId,
+  employer_name: localStorage.getItem("employerName"),
+  job_title: title,
+  job_description: description,
+  job_location: location
+})
